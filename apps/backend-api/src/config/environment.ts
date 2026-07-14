@@ -17,9 +17,19 @@ export const EnvironmentSchema = Type.Object({
 
 export type Environment = Static<typeof EnvironmentSchema>
 
+const REQUIRED_RUNTIME_KEYS = [
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'DATABASE_URL',
+] as const
+
 export function loadEnvironment(): Environment {
-  const env = {
-    API_PORT: Number(process.env.API_PORT ?? 8080),
+  // Cloud Run injects PORT; fall back to API_PORT for local/dev.
+  const port = Number(process.env.PORT ?? process.env.API_PORT ?? 8080)
+
+  return {
+    API_PORT: Number.isFinite(port) ? port : 8080,
     API_HOST: process.env.API_HOST ?? '0.0.0.0',
     CORS_ORIGIN: process.env.CORS_ORIGIN ?? '*',
     SUPABASE_URL: process.env.SUPABASE_URL ?? '',
@@ -32,13 +42,18 @@ export function loadEnvironment(): Environment {
     GEMINI_API_KEY: process.env.GEMINI_API_KEY ?? '',
     NODE_ENV: process.env.NODE_ENV ?? 'development',
   }
+}
 
-  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('Missing required Supabase environment variables.')
-  }
-  if (!env.DATABASE_URL) {
-    throw new Error('Missing DATABASE_URL for server-side Postgres access.')
-  }
+export function getMissingRuntimeSecrets(env: Environment): string[] {
+  return REQUIRED_RUNTIME_KEYS.filter((key) => !env[key])
+}
 
-  return env
+export function assertRuntimeConfigured(env: Environment): void {
+  const missing = getMissingRuntimeSecrets(env)
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required Cloud Run secrets/env vars: ${missing.join(', ')}. ` +
+        'Attach them in Cloud Run → Edit & deploy new revision → Variables & secrets.',
+    )
+  }
 }
