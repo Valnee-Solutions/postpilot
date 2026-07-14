@@ -9,11 +9,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "db:sync": "node scripts/supabase-sync.mjs sync",
-    "db:push": "node scripts/supabase-sync.mjs push",
-    "db:pull": "node scripts/supabase-sync.mjs pull",
-    "db:types": "node scripts/supabase-sync.mjs types",
-    "db:diff": "node scripts/supabase-sync.mjs diff"
+    "db:sync": "pnpm --filter @postpilot/db sync"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

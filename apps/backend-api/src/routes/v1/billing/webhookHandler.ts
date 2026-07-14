@@ -1,8 +1,11 @@
 import type { FastifyInstance } from 'fastify'
 import type { Environment } from '../../../config/environment.js'
 import { getStripe } from '../../../config/stripe.js'
-import { getServiceSupabase } from '../../../config/supabase.js'
-import { upsertSubscriptionFromStripe } from '../../../services/subscriptionService.js'
+import { getDb } from '../../../config/database.js'
+import {
+  upsertCustomer,
+  upsertSubscriptionFromStripe,
+} from '../../../services/subscriptionService.js'
 
 export async function registerWebhookRoutes(app: FastifyInstance, env: Environment) {
   const stripe = getStripe(env)
@@ -29,7 +32,7 @@ export async function registerWebhookRoutes(app: FastifyInstance, env: Environme
       return reply.status(400).send({ error: message })
     }
 
-    const supabase = getServiceSupabase(env)
+    const sql = getDb(env)
 
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -39,11 +42,7 @@ export async function registerWebhookRoutes(app: FastifyInstance, env: Environme
           typeof session.customer === 'string' ? session.customer : session.customer?.id
 
         if (userId && customerId) {
-          await supabase.schema('stripe').from('customers').upsert({
-            id: customerId,
-            user_id: userId,
-            email: session.customer_details?.email ?? null,
-          })
+          await upsertCustomer(sql, customerId, userId, session.customer_details?.email ?? null)
         }
         break
       }
@@ -51,7 +50,7 @@ export async function registerWebhookRoutes(app: FastifyInstance, env: Environme
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
         const subscription = event.data.object
-        await upsertSubscriptionFromStripe(supabase, subscription)
+        await upsertSubscriptionFromStripe(sql, subscription)
         break
       }
       default:

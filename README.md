@@ -11,10 +11,8 @@ apps/
 packages/
   shared-types/     # Shared API and domain types
   shared-utils/     # Shared validation and helpers
-supabase/
-  database/         # Declarative schema source of truth
-scripts/
-  supabase-sync.mjs # Schema sync automation
+packages/
+  db/               # TypeScript schema.ts + policies
 ```
 
 ## Quick start
@@ -27,14 +25,13 @@ pnpm dev
 
 ## Database sync
 
-Edit `supabase/database/*.sql`, then run:
+Edit `packages/db/src/schema.ts`, then run:
 
 ```bash
 pnpm db:sync
-pnpm db:types
 ```
 
-See [docs/database-workflow.md](docs/database-workflow.md).
+Requires `DATABASE_URL` in root `.env`. See [docs/database-workflow.md](docs/database-workflow.md).
 
 ## Development
 

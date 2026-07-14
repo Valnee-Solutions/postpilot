@@ -7,6 +7,7 @@ export const EnvironmentSchema = Type.Object({
   SUPABASE_URL: Type.String(),
   SUPABASE_ANON_KEY: Type.String(),
   SUPABASE_SERVICE_ROLE_KEY: Type.String(),
+  DATABASE_URL: Type.String({ default: '' }),
   STRIPE_SECRET_KEY: Type.String({ default: '' }),
   STRIPE_WEBHOOK_SECRET: Type.String({ default: '' }),
   STRIPE_PRICE_ID: Type.String({ default: '' }),
@@ -24,6 +25,7 @@ export function loadEnvironment(): Environment {
     SUPABASE_URL: process.env.SUPABASE_URL ?? '',
     SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ?? '',
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
+    DATABASE_URL: process.env.DATABASE_URL ?? '',
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ?? '',
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? '',
     STRIPE_PRICE_ID: process.env.STRIPE_PRICE_ID ?? '',
@@ -33,6 +35,9 @@ export function loadEnvironment(): Environment {
 
   if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('Missing required Supabase environment variables.')
+  }
+  if (!env.DATABASE_URL) {
+    throw new Error('Missing DATABASE_URL for server-side Postgres access.')
   }
 
   return env

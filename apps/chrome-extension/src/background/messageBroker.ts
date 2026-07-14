@@ -3,9 +3,12 @@ import type {
   AiGenerateRequest,
   AuthState,
   ExtensionMessage,
+  UsageSummary,
 } from '@postpilot/shared-types'
-import { getAuthState, initializeAuth, signInWithGoogle, signOut } from './auth.js'
+import { initializeAuth, signInWithGoogle, signOut, getAccessToken } from './auth.js'
 import { streamAiGenerate } from './streamClient.js'
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string
 
 type MessageResponse = unknown
 
@@ -28,11 +31,56 @@ async function handleMessage(message: ExtensionMessage): Promise<MessageResponse
       return signInWithGoogle()
     case 'AUTH_SIGN_OUT':
       return signOut()
+    case 'USAGE_GET':
+      return fetchUsage()
+    case 'BILLING_CHECKOUT':
+      return startCheckout()
     case 'AI_GENERATE':
       return handleAiGenerate(message.payload as AiGenerateMessagePayload)
     default:
       throw new Error(`Unsupported message type: ${message.type}`)
   }
+}
+
+async function requireAccessToken(): Promise<string> {
+  await initializeAuth()
+  const token = getAccessToken()
+  if (!token) throw new Error('Authentication required.')
+  return token
+}
+
+async function fetchUsage(): Promise<UsageSummary> {
+  const token = await requireAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/v1/billing/usage`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to load usage (${response.status})`)
+  }
+  return (await response.json()) as UsageSummary
+}
+
+async function startCheckout(): Promise<{ checkoutUrl: string }> {
+  const token = await requireAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/v1/billing/checkout`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({}),
+  })
+  if (!response.ok) {
+    let detail = `Checkout failed (${response.status})`
+    try {
+      const problem = (await response.json()) as { detail?: string }
+      if (problem.detail) detail = problem.detail
+    } catch {
+      // ignore
+    }
+    throw new Error(detail)
+  }
+  return (await response.json()) as { checkoutUrl: string }
 }
 
 async function handleAiGenerate(payload: AiGenerateMessagePayload): Promise<{ started: boolean }> {
@@ -52,15 +100,15 @@ async function handleAiGenerate(payload: AiGenerateMessagePayload): Promise<{ st
         })
       }
     },
-    onDone: (tokensGenerated) => {
+    onDone: (tokensGenerated, usage) => {
       port.postMessage({
         type: 'AI_STREAM_DONE',
-        payload: { tokens_generated: tokensGenerated },
+        payload: { tokens_generated: tokensGenerated, usage },
       })
       if (payload.tabId) {
         void chrome.tabs.sendMessage(payload.tabId, {
           type: 'AI_STREAM_DONE',
-          payload: { tokens_generated: tokensGenerated },
+          payload: { tokens_generated: tokensGenerated, usage },
         })
       }
       port.disconnect()

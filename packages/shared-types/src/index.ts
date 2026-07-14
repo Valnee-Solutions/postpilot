@@ -35,6 +35,15 @@ export interface SseMessageEvent {
 
 export interface SseDoneEvent {
   tokens_generated: number
+  usage?: UsageSummary
+}
+
+export interface UsageSummary {
+  plan: 'free' | 'pro'
+  usedThisMonth: number
+  freeAllowance: number
+  remainingFree: number
+  isSubscribed: boolean
 }
 
 export interface SseErrorEvent {
@@ -90,6 +99,8 @@ export type ExtensionMessageType =
   | 'AI_STREAM_CHUNK'
   | 'AI_STREAM_DONE'
   | 'AI_STREAM_ERROR'
+  | 'USAGE_GET'
+  | 'BILLING_CHECKOUT'
   | 'GET_ACTIVE_PLATFORM'
   | 'PING'
 
